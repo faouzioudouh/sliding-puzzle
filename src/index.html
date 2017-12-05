@@ -1,12 +1,28 @@
 <!doctype html>
 <html lang="en" data-framework="es6">
-	<head>
-		<meta charset="utf-8">
-		<title>Sliding puzzle</title>
-		<link rel="stylesheet" href="./index.css">
-	</head>
-	<body>
-        <div id="tiles"></div>
-        <script src="./index.js"></script>
-	</body>
+
+<head>
+	<meta charset="utf-8">
+	<title>Sliding puzzle</title>
+	<link rel="stylesheet" href="./index.css">
+	<style>
+		.tile {
+			width: 100px;
+			border: none;
+			display: inline-block;
+			cursor: pointer;
+			vertical-align: top;
+		}
+
+		#tiles {
+			width: 450px;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="tiles"></div>
+	<script src="./index.js"></script>
+</body>
+
 </html>

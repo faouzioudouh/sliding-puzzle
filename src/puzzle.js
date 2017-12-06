@@ -1,49 +1,48 @@
 import range from 'lodash/fp/range';
 import shuffle from 'lodash/fp/shuffle';
+import isEqual from 'lodash/fp/isEqual';
+import isFunction from 'lodash/fp/isFunction';
+import noop from 'lodash/fp/noop';
 
 import Tile from './tile';
+import { getCoordinatesByPosition } from './helpers';
 
-const EMPTY_TILE = '';
+const EMPTY_TILE = 'EMPTY_TILE';
 
-function insertAfter(newNode, referenceNode) {
-    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
-}
 export default class Puzzle {
+    constructor(size, image, rootElement, onMove) {
 
-    constructor(size, image, root) {
-
-        this.root = root;
+        this.rootElement = rootElement;
         this.size = size;
         this.image = image;
-        this.tiles = [];
+        this.getTileCoordinates = getCoordinatesByPosition(this.size);
+        this.onMove = isFunction(onMove) ? onMove : noop;
 
         this.state = {
             tiles: [],
-            solved: true,
+            solved: false,
         };
 
         this.buildPuzzle();
-        this.buildTiles();
     }
 
     setState(newState) {
-        const stateToRender = Object.assign(this.state, newState);
+        Object.assign(this.state, newState);
+        this.render();
     }
 
-    buildTiles() {
+    /**
+     * Build array of tiles
+     * @param {Array} range 
+     */
+    buildTiles(range) {
         var tileWidth = this.image.width / this.size;
         var tileHeight = this.image.height / this.size;
 
-        const puzzle = this;
-
-        const tiles = this.state.tiles
+        return range
             .map(function (expectedPosition, position) {
                 var expectedCoordinates = this.getTileCoordinates(expectedPosition - 1);
                 var currentCoordinates = this.getTileCoordinates(position);
-
-                // console.log('expectedCoordinates', expectedCoordinates);
-                // console.log('currentCoordinates', currentCoordinates);
-                // console.log('is empty', expectedPosition === EMPTY_TILE);
 
                 const props = {
                     width: tileWidth,
@@ -58,102 +57,138 @@ export default class Puzzle {
 
                 return new Tile(props);
             }, this);
-
-        this.setState({solved: false, tiles})
     }
 
     moveTile(tileCoordinates) {
-        var canTileMove = this.canTileMove(tileCoordinates);
-        if (canTileMove) {
-            this.swap(tileCoordinates);
-            return true;
-        }
-
-        return false;
+        this.canTileMove(tileCoordinates) && this.swap(tileCoordinates);
     }
 
-    swap(tileCoordinates) {
-        const tileToMove = this.getTileByCoordinates(tileCoordinates);
+    /**
+     * swap the given tile to the empty tile!
+     * @param {Tile} tileToMove 
+     */
+    swap(tileToMove) {
+        const tileToMoveCoordinates = tileToMove.getCurrentCoordinates();
         const tileToMoveIndex = this.state.tiles.indexOf(tileToMove);
 
         const emptyTile = this.getEmptyTile();
         const emptyTileIndex = this.state.tiles.indexOf(emptyTile);
 
-        tileToMove.setCurrentCoordinates(emptyTile.getCurrentCoordinates());        
-        emptyTile.setCurrentCoordinates(tileCoordinates);
+        tileToMove.setCurrentCoordinates(emptyTile.getCurrentCoordinates());
+        emptyTile.setCurrentCoordinates(tileToMoveCoordinates);
 
-        this.state.tiles[tileToMoveIndex] = this.getEmptyTile();
-        this.state.tiles[emptyTileIndex] = tileToMove;
+        // let's not mutate the state object directely!
+        const newTiles = [...this.state.tiles];
 
-        this.solved = this.isSolved();
-        // console.log(this);
-        this.render();
+        newTiles[tileToMoveIndex] = this.getEmptyTile();
+        newTiles[emptyTileIndex] = tileToMove;
+
+        this.onMove(tileToMove);
+        this.setState({tiles: newTiles, solved: this.isSolved()});
     }
 
+    /**
+     * Return true if the puzzle is solved, otherwise return false.
+     */
     isSolved() {
-        return this.state.tiles.every(tile => {
-          const is = tile.isAtTheRightPlace();
-          if (is) return is;
-          console.log(tile.getCurrentCoordinates());
-          return is;
-        });
+        return this.state.tiles.every(tile => tile.isAtTheRightPlace());
     }
 
+    /**
+     * Get the empty tile!
+     */
     getEmptyTile() {
         return this.state.tiles.find(tile => tile.isEmpty);
     }
 
-    canTileMove(coordinates) {
-        let canTileMove = false;
+    /**
+     * Return true if the given tile can move, otherwise return false!
+     * @param {Object} tile 
+     */
+    canTileMove(tile) {
+        const coordinates = tile.getCurrentCoordinates();
+        const coordinatesToCheck = [];
         const max = this.size - 1;
-        // console.log(coordinates);
-
+        let canTileMove = false;
+        
+        // Check if tile can move LEFT
         if (coordinates.x > 0) {
-            const newCoordinates = Object.assign({}, coordinates, {x: coordinates.x - 1}); 
-            // console.log('x - 1 ', this.getTileByCoordinates(newCoordinates));
-            canTileMove = this.getTileByCoordinates(newCoordinates).isEmpty;
-        }
-        if (!canTileMove && coordinates.x < max) {
-            const newCoordinates = Object.assign({}, coordinates, {x: coordinates.x + 1});             
-            // console.log('x + 1 ', this.getTileByCoordinates(newCoordinates));
-            canTileMove = this.getTileByCoordinates(newCoordinates).isEmpty;
-        }
-        if (!canTileMove && coordinates.y > 0) {
-            const newCoordinates = Object.assign({}, coordinates, {y: coordinates.y - 1});             
-            // console.log('y - 1 ', this.getTileByCoordinates(newCoordinates));            
-            canTileMove = this.getTileByCoordinates(newCoordinates).isEmpty;
-        }
-        if (!canTileMove && coordinates.y < max) {
-            const newCoordinates = Object.assign({}, coordinates, {y: coordinates.y + 1});             
-            // console.log('y + 1 ', this.getTileByCoordinates(newCoordinates));            
-            canTileMove = this.getTileByCoordinates(newCoordinates).isEmpty;
+            coordinatesToCheck.push({
+                ...coordinates,
+                x: coordinates.x - 1
+            });
         }
 
-        return canTileMove;
+        // Check if tile can move RIGHT
+        if (coordinates.x < max) {
+            coordinatesToCheck.push({
+                ...coordinates,
+                x: coordinates.x + 1
+            });
+        }
+
+        // Check if tile can move TOP
+        if (coordinates.y > 0) {
+            coordinatesToCheck.push({
+                ...coordinates,
+                y: coordinates.y - 1
+            });
+        }
+
+        // Check if tile can move BOTTOM
+        if (coordinates.y < max) {
+            coordinatesToCheck.push({
+                ...coordinates,
+                y: coordinates.y + 1
+            });
+        }
+
+        return coordinatesToCheck.some (coord => this.getTileByCoordinates(coord).isEmpty, this);
     }
 
+    /**
+     * get Tile by coordinates
+     * @param {Object} coordinates 
+     */
     getTileByCoordinates(coordinates) {
-        return this.state.tiles.find(tile => tile.props.currentCoordinates.x == coordinates.x && tile.props.currentCoordinates.y == coordinates.y);
+        return this.state.tiles.find(tile => isEqual(tile.getCurrentCoordinates(), coordinates));
     }
 
+    /**
+     * build buzzle
+     */
     buildPuzzle() {
-        this.sortedTiles = range(1, Math.pow(this.size, 2));
-        this.sortedTiles.push('');
+        const tilesIndex = range(1, Math.pow(this.size, 2));
+        tilesIndex.push(EMPTY_TILE);
 
-        this.state.tiles = this.sortedTiles;// shuffle(this.sortedTiles);
-        this.emptyTile = this.size;
+        const shuffledRange = shuffle(tilesIndex);
+
+        this.setState({
+            tiles: this.buildTiles(shuffledRange)
+        });
     }
 
-    getTileCoordinates(position) {
-        return {
-            x: position % this.size,
-            y: Math.floor(position / this.size)
-        };
+    shuffleTiles() {
+        const tiles = shuffle(this.state.tiles);
+        this.setState({tiles});
     }
 
+    /**
+     * render the puzzle in the given root element
+     */
     render() {
-        var fragment = document.createDocumentFragment();
-        this.state.tiles.forEach(tile => fragment.appendChild(tile.render()), this);
-        this.root.appendChild(fragment);
+        // clear root element
+        this.rootElement.innerHTML = '';
+
+        if (this.state.solved) {
+            const image = document.createElement('img');
+            image.src = this.image.src;
+            image.width = 400;
+            return this.rootElement.appendChild(image);
+        } else {
+            var fragment = document.createDocumentFragment();
+            this.state.tiles.forEach(tile => fragment.appendChild(tile.render()), this);
+            this.rootElement.appendChild(fragment);
+        }
     }
 }

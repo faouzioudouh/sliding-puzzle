@@ -9,6 +9,8 @@ export default class Tile {
 
         const canvasElement = document.createElement('canvas');
         const context = canvasElement.getContext('2d');
+        canvasElement.width = this.props.width;
+        canvasElement.height = this.props.height;
 
         // Draw image
         this.drawImage(context);
@@ -33,7 +35,7 @@ export default class Tile {
     }
 
     onTileClick() {
-        this.props.onClickHandler(this.props.currentCoordinates);
+        this.props.onClickHandler(this);
     }
 
     setCurrentCoordinates(newCurrentCoordinates) {
@@ -44,15 +46,16 @@ export default class Tile {
         return this.props.currentCoordinates;
     }
 
-    isAtTheRightPlace() {
-        return !this.isEmpty && isEqual(this.props.currentCoordinates, this.props.expectedCoordinates);
+    getExpectedCoordinates() {
+        return this.props.expectedCoordinates;
     }
 
-    render() {
-        // this.canvasElement.width = 133;
-        // this.canvasElement.height = 133;
-        this.canvasElement.classList.add('tile');
+    isAtTheRightPlace() {
+        return this.isEmpty || isEqual(this.props.currentCoordinates, this.props.expectedCoordinates);
+    }
 
+    render(className) {
+        className && this.canvasElement.classList.add('tile');
         return this.canvasElement;
     }
 }

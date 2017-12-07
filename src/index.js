@@ -1,26 +1,25 @@
 import range from 'lodash/fp/range';
 import shuffle from 'lodash/fp/shuffle';
+import { loadImage } from './helpers';
+import Puzzle from './Puzzle';
 
-import Puzzle from './puzzle';
+import mediaMonksImage from './assets/monks.jpg';
 
 const PUZZLE_SIZE = 4;
+const rootElement = document.getElementById('root');
+const movesElement = document.getElementById('moves');
+const solvedElement = document.getElementById('solved');
 
 const init = image => {
-    // Initialize the puzzle!
-    const puzzle = new Puzzle(PUZZLE_SIZE, image, document.getElementById('tiles'), () => console.log('mooooved!!'));
+    // Instantiate the puzzle!
+    const puzzle = new Puzzle(PUZZLE_SIZE, image, rootElement, 'tile');
 
     // Render the Puzzle
     puzzle.render();
+    puzzle.subscribe(({ moves, solved }) => {
+        movesElement.innerHTML = moves;
+        solvedElement.innerHTML = solved ? 'True' : 'False';
+    });
 }
 
-/**
- * load image
- * @param {Function} onload on load image callback
- */
-const loadImage = onload => {
-    var image = new Image();
-    image.src = 'http://i.giphy.com/LhenEkp5EsPJe.gif';
-    image.onload = onload.bind(null, image);
-};
-
-loadImage(init);
+loadImage(mediaMonksImage, init);

@@ -1,0 +1,33 @@
+.main {
+    margin: auto;
+    width: 735px;
+    display: flex;
+}
+
+.scoreboard__wrapper {
+    margin-left: 50px;
+}
+
+.scoreboard__moves,
+.scoreboard__solved {
+    padding: 20px;
+    margin-bottom: 5px;
+    background-color: #645552;
+    border-radius: 3px;
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.tiles__wrapper {
+    width: 500px;
+}
+
+.tile {
+    width: 125px;
+    border: none;
+    display: inline-block;
+    cursor: pointer;
+    vertical-align: bottom;
+}

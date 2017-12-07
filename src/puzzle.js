@@ -2,37 +2,58 @@ import range from 'lodash/fp/range';
 import shuffle from 'lodash/fp/shuffle';
 import isEqual from 'lodash/fp/isEqual';
 import isFunction from 'lodash/fp/isFunction';
-import noop from 'lodash/fp/noop';
+import isElement from 'lodash/fp/isElement';
 
-import Tile from './tile';
-import { getCoordinatesByPosition } from './helpers';
+import {
+    getCoordinatesByPosition,
+    swapItemsInArray,
+    createDOMElement
+} from './helpers';
+import Tile from './Tile';
 
 const EMPTY_TILE = 'EMPTY_TILE';
 
 export default class Puzzle {
-    constructor(size, image, rootElement, onMove) {
+    constructor(size, image, rootElement, tileClassName) {
+        if (!size)
+            throw new Error('Please provide the size of the puzzle.')
+        if (!(image instanceof HTMLImageElement))
+            throw new Error('Please provide the image of the puzzle.')
+        if (!isElement(rootElement))
+            throw new Error('Please provide the element to render the puzzle.')
 
         this.rootElement = rootElement;
         this.size = size;
         this.image = image;
+        this.tileClassName = tileClassName;
+        this.callbacks = [];
         this.getTileCoordinates = getCoordinatesByPosition(this.size);
-        this.onMove = isFunction(onMove) ? onMove : noop;
 
         this.state = {
             tiles: [],
             solved: false,
+            moves: 0
         };
 
         this.buildPuzzle();
     }
 
-    setState(newState) {
-        Object.assign(this.state, newState);
-        this.render();
+    /**
+     * @desc build buzzle
+     */
+    buildPuzzle() {
+        const tilesIndex = range(1, Math.pow(this.size, 2));
+        tilesIndex.push(EMPTY_TILE);
+
+        const shuffledRange = shuffle(tilesIndex);
+
+        this.setState({
+            tiles: this.buildTiles(shuffledRange)
+        });
     }
 
     /**
-     * Build array of tiles
+     * @desc Build array of tiles
      * @param {Array} range 
      */
     buildTiles(range) {
@@ -52,57 +73,59 @@ export default class Puzzle {
                     isEmpty: expectedPosition === EMPTY_TILE,
                     expectedCoordinates,
                     currentCoordinates,
-                    position,
                 };
 
                 return new Tile(props);
             }, this);
     }
 
-    moveTile(tileCoordinates) {
-        this.canTileMove(tileCoordinates) && this.swap(tileCoordinates);
+    /**
+     * @desc merge the given state with the current state
+     * @param {Object} newState 
+     */
+    setState(newState) {
+        // update the state object
+        Object.assign(this.state, newState);
+
+        // render the new state!
+        this.render();
+
+        // Notify the subscribers about the new state!
+        this.notifySubscribers();
     }
 
     /**
-     * swap the given tile to the empty tile!
+     * @desc Move the given tile!
+     * @param {Tile} tileToMove 
+     */
+    moveTile(tileToMove) {
+        this.canTileMove(tileToMove) && this.swap(tileToMove);
+    }
+
+    /**
+     * @desc swap the given tile to the empty tile!
      * @param {Tile} tileToMove 
      */
     swap(tileToMove) {
         const tileToMoveCoordinates = tileToMove.getCurrentCoordinates();
-        const tileToMoveIndex = this.state.tiles.indexOf(tileToMove);
-
         const emptyTile = this.getEmptyTile();
-        const emptyTileIndex = this.state.tiles.indexOf(emptyTile);
 
+        // Update coordinates!
         tileToMove.setCurrentCoordinates(emptyTile.getCurrentCoordinates());
         emptyTile.setCurrentCoordinates(tileToMoveCoordinates);
 
-        // let's not mutate the state object directely!
-        const newTiles = [...this.state.tiles];
+        // Swap the tile with the empty tile.
+        const newTiles = swapItemsInArray(this.state.tiles)(tileToMove, emptyTile);
 
-        newTiles[tileToMoveIndex] = this.getEmptyTile();
-        newTiles[emptyTileIndex] = tileToMove;
-
-        this.onMove(tileToMove);
-        this.setState({tiles: newTiles, solved: this.isSolved()});
+        this.setState({
+            tiles: newTiles,
+            solved: this.isSolved(),
+            moves: this.state.moves + 1
+        });
     }
 
     /**
-     * Return true if the puzzle is solved, otherwise return false.
-     */
-    isSolved() {
-        return this.state.tiles.every(tile => tile.isAtTheRightPlace());
-    }
-
-    /**
-     * Get the empty tile!
-     */
-    getEmptyTile() {
-        return this.state.tiles.find(tile => tile.isEmpty);
-    }
-
-    /**
-     * Return true if the given tile can move, otherwise return false!
+     * @desc Return true if the given tile can move, otherwise returns false!
      * @param {Object} tile 
      */
     canTileMove(tile) {
@@ -110,7 +133,7 @@ export default class Puzzle {
         const coordinatesToCheck = [];
         const max = this.size - 1;
         let canTileMove = false;
-        
+
         // Check if tile can move LEFT
         if (coordinates.x > 0) {
             coordinatesToCheck.push({
@@ -143,51 +166,80 @@ export default class Puzzle {
             });
         }
 
-        return coordinatesToCheck.some (coord => this.getTileByCoordinates(coord).isEmpty, this);
+        return coordinatesToCheck.some(coord => this.getTileByCoordinates(coord).isEmpty, this);
     }
 
     /**
-     * get Tile by coordinates
-     * @param {Object} coordinates 
+     * @desc Return true if the puzzle is solved, otherwise returns false.
+     * @returns {Boolean}
+     */
+    isSolved() {
+        return this.state.tiles.every(tile => tile.isAtTheRightPlace());
+    }
+
+    /**
+     * @desc Get the empty tile!
+     * @returns {Tile}
+     */
+    getEmptyTile() {
+        return this.state.tiles.find(tile => tile.isEmpty);
+    }
+
+    /**
+     * @desc Get Tile by coordinates
+     * @param {Object} coordinates
+     * @returns {Tile} the tile that matches the given coordinates
      */
     getTileByCoordinates(coordinates) {
         return this.state.tiles.find(tile => isEqual(tile.getCurrentCoordinates(), coordinates));
     }
 
     /**
-     * build buzzle
+     * @desc Shuffle tiles!
      */
-    buildPuzzle() {
-        const tilesIndex = range(1, Math.pow(this.size, 2));
-        tilesIndex.push(EMPTY_TILE);
-
-        const shuffledRange = shuffle(tilesIndex);
-
-        this.setState({
-            tiles: this.buildTiles(shuffledRange)
-        });
-    }
-
     shuffleTiles() {
-        const tiles = shuffle(this.state.tiles);
-        this.setState({tiles});
+        const newTiles = shuffle([...this.state.tiles]);
+        const tiles = newTiles.map((tile, index) => tile.setCurrentCoordinates(this.getTileCoordinates(index)), this);
+        this.setState({ tiles, moves: 0, solved: false });
     }
 
     /**
-     * render the puzzle in the given root element
+     * @desc add the given function to the stack of callbacks
+     * callback will called with the state is changed!
+     * @param {Function} callback 
+     */
+    subscribe(callback) {
+        isFunction(callback) && this.callbacks.push(callback);
+    }
+
+    /**
+     * @desc Notify all the subscribers about the state of the game.
+     */
+    notifySubscribers() {
+        const state = {
+            moves: this.state.moves,
+            solved: this.state.solved
+        };
+        this.callbacks.forEach(callback => callback(state));
+    }
+
+    /**
+     * @desc Render the puzzle in the given root element
      */
     render() {
         // clear root element
         this.rootElement.innerHTML = '';
 
         if (this.state.solved) {
-            const image = document.createElement('img');
-            image.src = this.image.src;
-            image.width = 400;
+            const image = createDOMElement('img')({
+                src: this.image.src,
+                width: 400
+            });
             return this.rootElement.appendChild(image);
         } else {
             var fragment = document.createDocumentFragment();
-            this.state.tiles.forEach(tile => fragment.appendChild(tile.render()), this);
+            this.state.tiles.forEach(tile =>
+                fragment.appendChild(tile.render(this.tileClassName)), this);
             this.rootElement.appendChild(fragment);
         }
     }

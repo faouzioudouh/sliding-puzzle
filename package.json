@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Sliding puzzle built using ES6",
   "main": "index.js",
+  "private": true,
+  "repository": {
+    "url": "https://github.com/faouzioudouh/sliding-puzzle.git"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack --hide-modules",

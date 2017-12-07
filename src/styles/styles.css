@@ -1,0 +1,70 @@
+body {
+    font-family: 'Source Sans Pro', 'Lucida Grande', sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 25px;
+    letter-spacing: inherit;
+    /* I love this color =D */
+    background-color: cornflowerblue;
+}
+
+.main {
+    margin: auto;
+    width: 735px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.container {
+    display: flex;
+}
+
+.scoreboard__wrapper {
+    margin-left: 50px;
+}
+
+.scoreboard__item {
+    padding: 11px 20px;
+    margin-bottom: 5px;
+    background-color: #645552;
+    border-radius: 3px;
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.tiles__wrapper {
+    position: relative;
+    width: 500px;
+}
+
+.tiles__wrapper::after {
+    content: "";
+    background: url('./monks.jpg') no-repeat;
+    opacity: .35;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    position: absolute;
+    z-index: -1;
+}
+
+.tile {
+    width: 125px;
+    border: none;
+    display: inline-block;
+    cursor: pointer;
+    vertical-align: bottom;
+}
+
+.button--primary {
+    background-color: #f2f2f2;
+    border: 1px solid #f2f2f2;
+    border-radius: 2px;
+    color: #757575;
+    padding: 8px 16px;
+    cursor: pointer;
+}

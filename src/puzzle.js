@@ -7,7 +7,8 @@ import isElement from 'lodash/fp/isElement';
 import {
     getCoordinatesByPosition,
     swapItemsInArray,
-    createDOMElement
+    createDOMElement,
+    swapTwoNodes
 } from './helpers';
 import Tile from './Tile';
 
@@ -16,11 +17,11 @@ const EMPTY_TILE = 'EMPTY_TILE';
 export default class Puzzle {
     constructor(size, image, rootElement, tileClassName) {
         if (!size)
-            throw new Error('Please provide the size of the puzzle.')
+            throw new Error('Please provide the size of the puzzle.');
         if (!(image instanceof HTMLImageElement))
-            throw new Error('Please provide the image of the puzzle.')
+            throw new Error('Please provide the image of the puzzle.');
         if (!isElement(rootElement))
-            throw new Error('Please provide the element to render the puzzle.')
+            throw new Error('Please provide the element to render the puzzle.');
 
         this.rootElement = rootElement;
         this.size = size;
@@ -39,32 +40,35 @@ export default class Puzzle {
     }
 
     /**
-     * @desc merge the given state with the current state
-     * @param {Object} newState 
+     * @desc build buzzle
      */
-    setState(newState) {
-        // update the state object
-        Object.assign(this.state, newState);
+    buildPuzzle() {
+        const tilesIndex = range(1, Math.pow(this.size, 2));
+        tilesIndex.push(EMPTY_TILE);
+
+        const shuffledRange = shuffle(tilesIndex);
+
+        this.setState({
+            tiles: this.buildTiles(shuffledRange)
+        });
 
         // render the new state!
         this.render();
-        
-        // Notify the subscribers about the new state!
-        this.notifySubscribers();
     }
 
     /**
      * @desc Build array of tiles
+     * @return {Tile[]}
      * @param {Array} range 
      */
     buildTiles(range) {
-        var tileWidth = this.image.width / this.size;
-        var tileHeight = this.image.height / this.size;
+        const tileWidth = this.image.width / this.size;
+        const tileHeight = this.image.height / this.size;
 
         return range
-            .map(function (expectedPosition, position) {
-                var expectedCoordinates = this.getTileCoordinates(expectedPosition - 1);
-                var currentCoordinates = this.getTileCoordinates(position);
+            .map((expectedPosition, position) => {
+                const expectedCoordinates = this.getTileCoordinates(expectedPosition - 1);
+                const currentCoordinates = this.getTileCoordinates(position);
 
                 const props = {
                     width: tileWidth,
@@ -78,6 +82,18 @@ export default class Puzzle {
 
                 return new Tile(props);
             }, this);
+    }
+
+    /**
+     * @desc merge the given state with the current state
+     * @param {Object} newState 
+     */
+    setState(newState) {
+        // update the state object
+        Object.assign(this.state, newState);
+
+        // Notify the subscribers about the new state!
+        this.notifySubscribers();
     }
 
     /**
@@ -103,27 +119,14 @@ export default class Puzzle {
         // Swap the tile with the empty tile.
         const newTiles = swapItemsInArray(this.state.tiles)(tileToMove, emptyTile);
 
+        // Insread of re-rendeing the whole list, lets just swap the tiles!
+        swapTwoNodes(this.rootElement)(emptyTile.render(), tileToMove.render());
+
         this.setState({
             tiles: newTiles,
             solved: this.isSolved(),
             moves: this.state.moves + 1
         });
-    }
-
-    /**
-     * @desc Return true if the puzzle is solved, otherwise returns false.
-     * @returns {Boolean}
-     */
-    isSolved() {
-        return this.state.tiles.every(tile => tile.isAtTheRightPlace());
-    }
-
-    /**
-     * @desc Get the empty tile!
-     * @returns {Tile}
-     */
-    getEmptyTile() {
-        return this.state.tiles.find(tile => tile.isEmpty);
     }
 
     /**
@@ -135,7 +138,7 @@ export default class Puzzle {
         const coordinatesToCheck = [];
         const max = this.size - 1;
         let canTileMove = false;
-        
+
         // Check if tile can move LEFT
         if (coordinates.x > 0) {
             coordinatesToCheck.push({
@@ -172,6 +175,22 @@ export default class Puzzle {
     }
 
     /**
+     * @desc Return true if the puzzle is solved, otherwise returns false.
+     * @returns {Boolean}
+     */
+    isSolved() {
+        return this.state.tiles.every(tile => tile.isAtTheRightPlace());
+    }
+
+    /**
+     * @desc Get the empty tile!
+     * @returns {Tile}
+     */
+    getEmptyTile() {
+        return this.state.tiles.find(tile => tile.isEmpty);
+    }
+
+    /**
      * @desc Get Tile by coordinates
      * @param {Object} coordinates
      * @returns {Tile} the tile that matches the given coordinates
@@ -181,25 +200,15 @@ export default class Puzzle {
     }
 
     /**
-     * @desc build buzzle
-     */
-    buildPuzzle() {
-        const tilesIndex = range(1, Math.pow(this.size, 2));
-        tilesIndex.push(EMPTY_TILE);
-
-        const shuffledRange = shuffle(tilesIndex);
-
-        this.setState({
-            tiles: this.buildTiles(shuffledRange)
-        });
-    }
-
-    /**
      * @desc Shuffle tiles!
      */
     shuffleTiles() {
-        const tiles = shuffle(this.state.tiles);
-        this.setState({ tiles });
+        const newTiles = shuffle([...this.state.tiles]);
+        const tiles = newTiles.map((tile, index) => tile.setCurrentCoordinates(this.getTileCoordinates(index)), this);
+        this.setState({ tiles, moves: 0, solved: false });
+
+        // render the new state!
+        this.render();
     }
 
     /**
@@ -230,11 +239,14 @@ export default class Puzzle {
         this.rootElement.innerHTML = '';
 
         if (this.state.solved) {
-            const image = createDOMElement('img')({ src: this.image.src, width: 400 });
+            const image = createDOMElement('img')({
+                src: this.image.src,
+                width: 400
+            });
             return this.rootElement.appendChild(image);
         } else {
-            var fragment = document.createDocumentFragment();
-            this.state.tiles.forEach(tile => 
+            const fragment = document.createDocumentFragment();
+            this.state.tiles.forEach(tile =>
                 fragment.appendChild(tile.render(this.tileClassName)), this);
             this.rootElement.appendChild(fragment);
         }

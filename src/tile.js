@@ -49,6 +49,7 @@ export default class Tile {
      */
     setCurrentCoordinates(newCurrentCoordinates) {
         this.props.currentCoordinates = newCurrentCoordinates;
+        return this;
     }
 
     /**

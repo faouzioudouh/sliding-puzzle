@@ -1555,40 +1555,43 @@ module.exports = {
  * @param {Function} onload on load image callback
  */
 const loadImage = (src, onload) => {
-  var image = new Image();
-  image.src = src;
-  image.onload = onload.bind(null, image);
+    var image = new Image();
+    image.src = src;
+    image.onload = onload.bind(null, image);
 };
 /* harmony export (immutable) */ __webpack_exports__["c"] = loadImage;
 
 
 /**
-  * Get coordinates by position
-  * @param {Number} size 
-  */
+ * @desc Get coordinates by position
+ * @param {Number} size 
+ */
 const getCoordinatesByPosition = size => position => ({
-  x: position % size,
-  y: Math.floor(position / size)
+    x: position % size,
+    y: Math.floor(position / size)
 });
 /* harmony export (immutable) */ __webpack_exports__["b"] = getCoordinatesByPosition;
 
 
 /**
- * swap the given items in the given array
+ * @desc swap the given items in the given array
  * @return {Function} takes two elements to swap
  * @param {Array} array of items
  */
 const swapItemsInArray = array => (firstElemnt, secondElement) => {
-  const firstElemntIndex = array.indexOf(firstElemnt);
-  const secondElementIndex = array.indexOf(secondElement);
+    const firstElemntIndex = array.indexOf(firstElemnt);
+    const secondElementIndex = array.indexOf(secondElement);
 
-  // let's not mutate the array directly!
-  const newArray = [...array];
+    // return the same array if one of the item is not in teh given array.
+    if (firstElemntIndex === -1 || firstElemntIndex === -1) return array;
 
-  newArray[firstElemntIndex] = secondElement;
-  newArray[secondElementIndex] = firstElemnt;
+    // let's not mutate the array directly!
+    const newArray = [...array];
 
-  return newArray;
+    newArray[firstElemntIndex] = secondElement;
+    newArray[secondElementIndex] = firstElemnt;
+
+    return newArray;
 };
 /* harmony export (immutable) */ __webpack_exports__["d"] = swapItemsInArray;
 
@@ -1598,8 +1601,8 @@ const swapItemsInArray = array => (firstElemnt, secondElement) => {
  * @returns {DOMElement}
  */
 const createDOMElement = type => props => {
-  const element = document.createElement(type);
-  return Object.assign(element, props);
+    const element = document.createElement(type);
+    return Object.assign(element, props);
 };
 /* harmony export (immutable) */ __webpack_exports__["a"] = createDOMElement;
 
@@ -3291,6 +3294,8 @@ const PUZZLE_SIZE = 4;
 const rootElement = document.getElementById('root');
 const movesElement = document.getElementById('moves');
 const solvedElement = document.getElementById('solved');
+const previewElement = document.getElementById('preview');
+const newGameElement = document.getElementById('new-game');
 
 const init = image => {
     // Instantiate the puzzle!
@@ -3298,10 +3303,22 @@ const init = image => {
 
     // Render the Puzzle
     puzzle.render();
+
+    //Subscribe to the puzzle state
     puzzle.subscribe(({ moves, solved }) => {
         movesElement.innerHTML = moves;
-        solvedElement.innerHTML = solved ? 'True' : 'False';
+        solvedElement.innerHTML = solved ? 'Yes' : 'No';
     });
+
+    // Set preview image
+    const previewImage = Object(__WEBPACK_IMPORTED_MODULE_2__helpers__["a" /* createDOMElement */])('img')({
+        src: image.src,
+        width: 90
+    });
+    previewElement.appendChild(previewImage);
+
+    // render new game on click
+    newGameElement.onclick = puzzle.shuffleTiles.bind(puzzle);
 };
 
 Object(__WEBPACK_IMPORTED_MODULE_2__helpers__["c" /* loadImage */])(__WEBPACK_IMPORTED_MODULE_4__assets_monks_jpg___default.a, init);
@@ -8634,18 +8651,17 @@ class Puzzle {
     }
 
     /**
-     * @desc merge the given state with the current state
-     * @param {Object} newState 
+     * @desc build buzzle
      */
-    setState(newState) {
-        // update the state object
-        Object.assign(this.state, newState);
+    buildPuzzle() {
+        const tilesIndex = __WEBPACK_IMPORTED_MODULE_0_lodash_fp_range___default()(1, Math.pow(this.size, 2));
+        tilesIndex.push(EMPTY_TILE);
 
-        // render the new state!
-        this.render();
+        const shuffledRange = __WEBPACK_IMPORTED_MODULE_1_lodash_fp_shuffle___default()(tilesIndex);
 
-        // Notify the subscribers about the new state!
-        this.notifySubscribers();
+        this.setState({
+            tiles: this.buildTiles(shuffledRange)
+        });
     }
 
     /**
@@ -8672,6 +8688,21 @@ class Puzzle {
 
             return new __WEBPACK_IMPORTED_MODULE_6__Tile__["a" /* default */](props);
         }, this);
+    }
+
+    /**
+     * @desc merge the given state with the current state
+     * @param {Object} newState 
+     */
+    setState(newState) {
+        // update the state object
+        Object.assign(this.state, newState);
+
+        // render the new state!
+        this.render();
+
+        // Notify the subscribers about the new state!
+        this.notifySubscribers();
     }
 
     /**
@@ -8702,22 +8733,6 @@ class Puzzle {
             solved: this.isSolved(),
             moves: this.state.moves + 1
         });
-    }
-
-    /**
-     * @desc Return true if the puzzle is solved, otherwise returns false.
-     * @returns {Boolean}
-     */
-    isSolved() {
-        return this.state.tiles.every(tile => tile.isAtTheRightPlace());
-    }
-
-    /**
-     * @desc Get the empty tile!
-     * @returns {Tile}
-     */
-    getEmptyTile() {
-        return this.state.tiles.find(tile => tile.isEmpty);
     }
 
     /**
@@ -8762,6 +8777,22 @@ class Puzzle {
     }
 
     /**
+     * @desc Return true if the puzzle is solved, otherwise returns false.
+     * @returns {Boolean}
+     */
+    isSolved() {
+        return this.state.tiles.every(tile => tile.isAtTheRightPlace());
+    }
+
+    /**
+     * @desc Get the empty tile!
+     * @returns {Tile}
+     */
+    getEmptyTile() {
+        return this.state.tiles.find(tile => tile.isEmpty);
+    }
+
+    /**
      * @desc Get Tile by coordinates
      * @param {Object} coordinates
      * @returns {Tile} the tile that matches the given coordinates
@@ -8771,25 +8802,12 @@ class Puzzle {
     }
 
     /**
-     * @desc build buzzle
-     */
-    buildPuzzle() {
-        const tilesIndex = __WEBPACK_IMPORTED_MODULE_0_lodash_fp_range___default()(1, Math.pow(this.size, 2));
-        tilesIndex.push(EMPTY_TILE);
-
-        const shuffledRange = __WEBPACK_IMPORTED_MODULE_1_lodash_fp_shuffle___default()(tilesIndex);
-
-        this.setState({
-            tiles: this.buildTiles(shuffledRange)
-        });
-    }
-
-    /**
      * @desc Shuffle tiles!
      */
     shuffleTiles() {
-        const tiles = __WEBPACK_IMPORTED_MODULE_1_lodash_fp_shuffle___default()(this.state.tiles);
-        this.setState({ tiles });
+        const newTiles = __WEBPACK_IMPORTED_MODULE_1_lodash_fp_shuffle___default()([...this.state.tiles]);
+        const tiles = newTiles.map((tile, index) => tile.setCurrentCoordinates(this.getTileCoordinates(index)), this);
+        this.setState({ tiles, moves: 0, solved: false });
     }
 
     /**
@@ -8820,7 +8838,10 @@ class Puzzle {
         this.rootElement.innerHTML = '';
 
         if (this.state.solved) {
-            const image = Object(__WEBPACK_IMPORTED_MODULE_5__helpers__["a" /* createDOMElement */])('img')({ src: this.image.src, width: 400 });
+            const image = Object(__WEBPACK_IMPORTED_MODULE_5__helpers__["a" /* createDOMElement */])('img')({
+                src: this.image.src,
+                width: 400
+            });
             return this.rootElement.appendChild(image);
         } else {
             var fragment = document.createDocumentFragment();
@@ -9043,6 +9064,7 @@ class Tile {
      */
     setCurrentCoordinates(newCurrentCoordinates) {
         this.props.currentCoordinates = newCurrentCoordinates;
+        return this;
     }
 
     /**

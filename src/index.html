@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en" data-framework="es6">
+
 <head>
 	<meta charset="utf-8">
 	<title>Sliding puzzle</title>
@@ -8,15 +9,25 @@
 
 <body>
 	<div class="main" role="main">
-		<div id="root" class="tiles__wrapper"></div>
-		<div class="scoreboard__wrapper">
-			<div class="scoreboard__moves">
-				<p>Moves</p>
-				<p id="moves">0</p>
-			</div>
-			<div class="scoreboard__solved">
-				<p>Solved?</p>
-				<p id="solved">False</p>
+		<h1>Sliding puzzle 4x4</h1>
+		<div class="container">
+			<div id="root" class="tiles__wrapper"></div>
+			<div class="scoreboard__wrapper">
+				<div class="scoreboard__item">
+					<p>Moves</p>
+					<p id="moves">0</p>
+				</div>
+				<div class="scoreboard__item">
+					<p>Solved?</p>
+					<p id="solved">No</p>
+				</div>
+				<div class="scoreboard__item">
+					<p>Preview</p>
+					<div id="preview"></div>
+				</div>
+				<div class="scoreboard__item">
+					<button id="new-game" class="button--primary">New game!</button>
+				</div>
 			</div>
 		</div>
 	</div>
